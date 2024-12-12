@@ -233,6 +233,8 @@ class ServiceCallData:
         self.frigate_retry_seconds = int(data_call.data.get(FRIGATE_RETRY_SECONDS, 1))
         self.interval = int(data_call.data.get(INTERVAL, 2))
         self.duration = int(data_call.data.get(DURATION, 10))
+        self.frigate_retry_attempts = int(data_call.data.get(FRIGATE_RETRY_ATTEMPTS, 2))
+        self.frigate_retry_seconds = int(data_call.data.get(FRIGATE_RETRY_SECONDS, 1))
         self.max_frames = int(data_call.data.get(MAX_FRAMES, 3))
         self.target_width = data_call.data.get(TARGET_WIDTH, 3840)
         self.temperature = float(data_call.data.get(TEMPERATURE, 0.3))
@@ -293,7 +295,10 @@ def setup(hass, config):
                                             target_width=call.target_width,
                                             include_filename=call.include_filename,
                                             expose_images=call.expose_images,
+<<<<<<< HEAD
                                             expose_images_persist=call.expose_images_persist,
+=======
+>>>>>>> configure-retry
                                             frigate_retry_attempts=call.frigate_retry_attempts,
                                             frigate_retry_seconds=call.frigate_retry_seconds
                                             )
