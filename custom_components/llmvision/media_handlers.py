@@ -294,15 +294,7 @@ class MediaProcessor:
                     raise ServiceValidationError(f"Error: {e}")
         return self.client
 
-<<<<<<< HEAD
-<<<<<<< HEAD
-    async def add_videos(self, video_paths, event_ids, max_frames, target_width, include_filename, expose_images, expose_images_persist, frigate_retry_attempts, frigate_retry_seconds):
-=======
-    async def add_videos(self, video_paths, event_ids, max_frames, target_width, include_filename, expose_images, frigate_retry_attempts, frigate_retry_seconds):
->>>>>>> configure-retry
-=======
-    async def add_videos(self, video_paths, event_ids, max_frames, target_width, include_filename, expose_images, expose_images_persist):
->>>>>>> image-persist
+    async def add_videos(self, video_paths, event_ids, max_frames, target_width, include_filename, expose_images, expose_images_persist, frigate_retry_attempts, frigate_retry_seconds, frame_per_interval, use_evenly_spaced_frames):
         """Wrapper for client.add_frame for videos"""
         tmp_clips_dir = f"/config/custom_components/{DOMAIN}/tmp_clips"
         tmp_frames_dir = f"/config/custom_components/{DOMAIN}/tmp_frames"
@@ -316,11 +308,7 @@ class MediaProcessor:
                     base_url = get_url(self.hass)
                     frigate_url = base_url + "/api/frigate/notifications/" + event_id + "/clip.mp4"
                     clip_data = await self.client._fetch(frigate_url, max_retries=frigate_retry_attempts, retry_delay=frigate_retry_seconds)
-<<<<<<< HEAD
 
-=======
-                    
->>>>>>> configure-retry
                     if not clip_data:
                         raise ServiceValidationError(
                             f"Failed to fetch frigate clip {event_id}")
@@ -357,16 +345,24 @@ class MediaProcessor:
                             _LOGGER.error(
                                 f"Failed to create temp directory {tmp_frames_dir}")
 
-                        interval = 2
-
-                        # Extract frames from video every interval seconds
+                        # Extract frames from video every frame_per_interval seconds
                         ffmpeg_cmd = [
                             "ffmpeg",
                             "-i", video_path,
-                            "-vf", f"fps=fps='source_fps',select='eq(n\\,0)+not(mod(n\\,{interval}))'", 
+                            "-vf", f"fps=fps='source_fps',select='bitor(gte(t-prev_selected_t\\,{frame_per_interval})\\,isnan(prev_selected_t))'",
                             "-fps_mode", "passthrough",
                             os.path.join(tmp_frames_dir, "frame%04d.jpg")
                         ]
+
+                        if use_evenly_spaced_frames:
+                            # Since ffmpeg operated per-frame, we would need to pre-process to get the video length, or we can just generate all frames and delete the ones we don't need later.  We'll do the latter.
+                            ffmpeg_cmd = [
+                                "ffmpeg",
+                                "-i", video_path,
+                                "-fps_mode", "passthrough",
+                                os.path.join(tmp_frames_dir, "frame%04d.jpg")
+                            ]
+
                         # Run ffmpeg command
                         await self.hass.loop.run_in_executor(None, os.system, " ".join(ffmpeg_cmd))
 
@@ -374,35 +370,63 @@ class MediaProcessor:
                         previous_frame = None
                         frames = []
 
-                        for frame_file in await self.hass.loop.run_in_executor(None, os.listdir, tmp_frames_dir):
-                            _LOGGER.debug(f"Adding frame {frame_file}")
-                            frame_path = os.path.join(tmp_frames_dir, frame_file)
-                            try:
-                                # open image in hass.loop
-                                img = await self.hass.loop.run_in_executor(None, Image.open, frame_path)
-                                # Remove transparency for compatibility
-                                if img.mode == 'RGBA':
-                                    img = img.convert('RGB')
-                                    await self.hass.loop.run_in_executor(None, img.save, frame_path)
-                        
-                                current_frame_gray = np.array(img.convert('L'))
-                        
-                                # Calculate similarity score
-                                if previous_frame is not None:
-                                    score = self._similarity_score(previous_frame, current_frame_gray)
-                                    frames.append((frame_path, score))
-                                    frame_counter += 1
-                                    previous_frame = current_frame_gray
-                                else:
-                                    # Initialize previous_frame with the first frame
-                                    previous_frame = current_frame_gray
-                            except UnidentifiedImageError:
-                                _LOGGER.error(f"Cannot identify image file {frame_path}")
-                                continue
-                        
-                        # Keep only max_frames many frames with lowest SSIM scores
-                        sorted_frames = sorted(frames, key=lambda x: x[1])[:max_frames]
-                        
+                        frame_files = await self.hass.loop.run_in_executor(None, os.listdir, tmp_frames_dir)
+
+
+                        if use_evenly_spaced_frames:
+                            _LOGGER.debug(f"Using evenly spaced fames")
+
+                            sorted_filenames = sorted(frame_files)
+
+                            # count the total number of frames
+                            total_frames = len(sorted_filenames)
+
+                            # determine which frames to keep ((1, each nth, last) where n is (total frames - 1) / (max_frames - 1) )
+                            mod_to_check = (total_frames - 1) / (max_frames - 1)
+    
+                            frame_num = 1
+                            for frame_file in sorted_filenames:
+                                frame_path = os.path.join(tmp_frames_dir, frame_file)
+
+                                frame_mod_result = frame_num % mod_to_check
+
+                                if (frame_num == 1) or (frame_mod_result == 0):
+                                    # keep this frame
+                                    _LOGGER.debug(f"Keeping frame {frame_file}")
+                                    frames.append((frame_path, 0))
+                                frame_num += 1
+                            sorted_frames = frames
+                        else:
+
+                            for frame_file in frame_files:
+                                _LOGGER.debug(f"Adding frame {frame_file}")
+                                frame_path = os.path.join(tmp_frames_dir, frame_file)
+                                try:
+                                    # open image in hass.loop
+                                    img = await self.hass.loop.run_in_executor(None, Image.open, frame_path)
+                                    # Remove transparency for compatibility
+                                    if img.mode == 'RGBA':
+                                        img = img.convert('RGB')
+                                        await self.hass.loop.run_in_executor(None, img.save, frame_path)
+                            
+                                    current_frame_gray = np.array(img.convert('L'))
+                            
+                                    # Calculate similarity score
+                                    if previous_frame is not None:
+                                        score = self._similarity_score(previous_frame, current_frame_gray)
+                                        frames.append((frame_path, score))
+                                        frame_counter += 1
+                                        previous_frame = current_frame_gray
+                                    else:
+                                        # Initialize previous_frame with the first frame
+                                        previous_frame = current_frame_gray
+                                except UnidentifiedImageError:
+                                    _LOGGER.error(f"Cannot identify image file {frame_path}")
+                                    continue
+                            
+                                # Keep only max_frames many frames with lowest SSIM scores
+                                sorted_frames = sorted(frames, key=lambda x: x[1])[:max_frames]
+
                         # Ensure at least one frame is present
                         if not sorted_frames and frames:
                             sorted_frames.append(frames[0])

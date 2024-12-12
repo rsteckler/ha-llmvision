@@ -29,6 +29,8 @@ from .const import (
     INTERVAL,
     DURATION,
     MAX_FRAMES,
+    FRAME_PER_INTERVAL,
+    USE_EVENLY_SPACED_FRAMES,
     TEMPERATURE,
     DETAIL,
     INCLUDE_FILENAME,
@@ -231,11 +233,10 @@ class ServiceCallData:
         self.interval = int(data_call.data.get(INTERVAL, 2))
         self.frigate_retry_attempts = int(data_call.data.get(FRIGATE_RETRY_ATTEMPTS, 2))
         self.frigate_retry_seconds = int(data_call.data.get(FRIGATE_RETRY_SECONDS, 1))
-        self.interval = int(data_call.data.get(INTERVAL, 2))
         self.duration = int(data_call.data.get(DURATION, 10))
-        self.frigate_retry_attempts = int(data_call.data.get(FRIGATE_RETRY_ATTEMPTS, 2))
-        self.frigate_retry_seconds = int(data_call.data.get(FRIGATE_RETRY_SECONDS, 1))
         self.max_frames = int(data_call.data.get(MAX_FRAMES, 3))
+        self.frame_per_interval = int(data_call.data.get(FRAME_PER_INTERVAL, 2))
+        self.use_evenly_spaced_frames = data_call.data.get(USE_EVENLY_SPACED_FRAMES, False)
         self.target_width = data_call.data.get(TARGET_WIDTH, 3840)
         self.temperature = float(data_call.data.get(TEMPERATURE, 0.3))
         self.max_tokens = int(data_call.data.get(MAXTOKENS, 100))
@@ -295,16 +296,11 @@ def setup(hass, config):
                                             target_width=call.target_width,
                                             include_filename=call.include_filename,
                                             expose_images=call.expose_images,
-<<<<<<< HEAD
-<<<<<<< HEAD
                                             expose_images_persist=call.expose_images_persist,
-=======
->>>>>>> configure-retry
                                             frigate_retry_attempts=call.frigate_retry_attempts,
-                                            frigate_retry_seconds=call.frigate_retry_seconds
-=======
-                                            expose_images_persist=call.expose_images_persist
->>>>>>> image-persist
+                                            frigate_retry_seconds=call.frigate_retry_seconds,
+                                            frame_per_interval=call.frame_per_interval,
+                                            use_evenly_spaced_frames=call.use_evenly_spaced_frames
                                             )
         response = await client.make_request(call)
         await _remember(hass, call, start, response)

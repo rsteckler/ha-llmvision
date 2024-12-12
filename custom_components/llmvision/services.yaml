@@ -195,6 +195,25 @@ video_analyzer:
           min: 1
           max: 10
           step: 1
+    frame_per_interval:
+      name: Frame per Interval
+      description: Specifies how often to extract a frame from the video in seconds.  For example, a value of 2 would extract one frame every 2 seconds.
+      required: false
+      example: 2
+      default: 2
+      selector:
+        number:
+          min: 1
+          max: 10
+          step: 1
+    use_evenly_spaced_frames:
+      name: Use Evenly Spaced Frames
+      description: Extract and use a certain number of frames from the video, rather than looking for the frames with the most motion.  This will extract exactly <Max Frames> frames from the video.
+      required: false
+      example: false
+      default: false
+      selector:
+        boolean:
     include_filename:
       name: Include Filename
       required: true
