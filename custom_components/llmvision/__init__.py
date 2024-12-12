@@ -296,11 +296,15 @@ def setup(hass, config):
                                             include_filename=call.include_filename,
                                             expose_images=call.expose_images,
 <<<<<<< HEAD
+<<<<<<< HEAD
                                             expose_images_persist=call.expose_images_persist,
 =======
 >>>>>>> configure-retry
                                             frigate_retry_attempts=call.frigate_retry_attempts,
                                             frigate_retry_seconds=call.frigate_retry_seconds
+=======
+                                            expose_images_persist=call.expose_images_persist
+>>>>>>> image-persist
                                             )
         response = await client.make_request(call)
         await _remember(hass, call, start, response)
